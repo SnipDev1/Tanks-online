@@ -3,6 +3,8 @@ import pygame as pg
 
 class Text:
     def __init__(self, coordinates, default_text, value, size=24, color=[255, 255, 255]):
+        self.text_rect = None
+        self.text = None
         self.color = color
         self.size = size
         self.default_text = default_text
@@ -13,6 +15,17 @@ class Text:
     def update_value(self, value):
         self.text = self.font.render(f"{self.default_text}{value}", True, self.color)
         self.text_rect = self.text.get_rect(center=self.coordinates)
+
+
+class Surface:
+    def __init__(self, coordinates: tuple, size: tuple, fill_color: tuple, alpha: int):
+        self.x = coordinates[0]
+        self.y = coordinates[1]
+        self.size_x = size[0]
+        self.size_y = size[1]
+        self.surface = pg.Surface((self.size_x, self.size_y))
+        self.surface.fill(fill_color)
+        self.surface.set_alpha(alpha)
 
 
 class Button:
@@ -68,7 +81,6 @@ class Button:
 
         font = pg.font.Font(None, 24)
 
-
         self.text = font.render(text, True, text_color)
         self.text_rect = self.text.get_rect(center=(self.button_surface.get_width() / 2, self.button_surface.get_height() / 2))
         self.button_rect = pg.Rect(coordinates[0], coordinates[1], size[0], size[1])
@@ -109,8 +121,6 @@ class UI:
         bg_image_path = materials.Sprites().get_image_path('map_editor_bg')
         self.bg_image = pg.image.load(os.path.abspath(bg_image_path))
 
-
-
     def start_editor(self):
         pg.init()
 
@@ -125,46 +135,38 @@ class UI:
         bg_image = bg_image.convert()
         screen.blit(bg_image, (0, 0))
 
-        materials_surface = pg.Surface((741, 76))
-        materials_surface_x = 30
-        materials_surface_y = 37
-        materials_surface.fill((255, 0, 0))
-        materials_surface.set_alpha(60)
-        screen.blit(materials_surface, (materials_surface_x, materials_surface_y))
+        materials_surface = Surface((30, 37), (741, 76), (255, 0, 0), 60)
+        screen.blit(materials_surface.surface, (materials_surface.x, materials_surface.y))
+
         space_between_mat_buttons = 0
         amount_of_mat_buttons = len(self.res_dictionary)
         print(amount_of_mat_buttons)
-        button_x_size = materials_surface.get_width() // amount_of_mat_buttons - space_between_mat_buttons
-        button_y_size = materials_surface.get_height()
-        buttons_x_shift = (materials_surface.get_width() - button_x_size * amount_of_mat_buttons) // 2
+        button_x_size = materials_surface.surface.get_width() // amount_of_mat_buttons - space_between_mat_buttons
+        button_y_size = materials_surface.surface.get_height()
+        buttons_x_shift = (materials_surface.surface.get_width() - button_x_size * amount_of_mat_buttons) // 2
         for i in range(amount_of_mat_buttons):
-            x_coord = materials_surface_x + button_x_size * i + buttons_x_shift
-            y_coord = materials_surface_y
+            x_coord = materials_surface.x + button_x_size * i + buttons_x_shift
+            y_coord = materials_surface.y
             button = Button((x_coord, y_coord), (button_x_size, button_y_size), (255, 255, 255), self.res_dictionary[i], (0, 0, 0), None, -1, -1, i, True, 60)
             self.buttons.append(button)
 
-        # test_btn = Button((30, 37), (76, 76), (255, 0, 0), "test", "black")
-        # self.buttons.append(test_btn)
-        # screen.blit(test_btn.button_surface, (test_btn.x, test_btn.y))
 
-        map_surface = pg.Surface((537, 537))
-        map_surface_x = 132
-        map_surface_y = 132
-        map_surface.fill((255, 255, 0))
-        map_surface.set_alpha(0)
-        screen.blit(map_surface, (132, 132))
-        button_x_size = map_surface.get_width() // self.map_x
-        button_y_size = map_surface.get_height() // self.map_y
-        buttons_x_shift = (map_surface.get_width() - button_x_size * self.map_x) // 2
-        buttons_y_shift = (map_surface.get_height() - button_y_size * self.map_y) // 2
+        map_surface = Surface((132, 132), (537, 537), (255, 255, 0), 0)
+
+
+        screen.blit(map_surface.surface, (132, 132))
+        button_x_size = map_surface.surface.get_width() // self.map_x
+        button_y_size = map_surface.surface.get_height() // self.map_y
+        buttons_x_shift = (map_surface.surface.get_width() - button_x_size * self.map_x) // 2
+        buttons_y_shift = (map_surface.surface.get_height() - button_y_size * self.map_y) // 2
         print(button_x_size, button_y_size)
         print(buttons_x_shift)
 
         for row in range(len(self.game_map)):
             for column in range(len(self.game_map[row])):
                 element = self.game_map[row][column]
-                x_coord = buttons_x_shift + map_surface_x + button_x_size * column
-                y_coord = buttons_y_shift + map_surface_y + button_y_size * row
+                x_coord = buttons_x_shift + map_surface.x + button_x_size * column
+                y_coord = buttons_y_shift + map_surface.y + button_y_size * row
                 self.map_buttons.append(Button((x_coord, y_coord), (button_x_size, button_y_size), (255, 255, 255), "", (0, 0, 0), None, row, column, element, True, 100))
 
         running = True
@@ -173,16 +175,11 @@ class UI:
         texts = []
         fill_text = Text((80, 10), "Fill (F / G): ", fill_mode, 30)
         bucket_text = Text((440, 10), "Bucket (B / N): ", bucket_mode, 30)
-
-        text_surface = pg.Surface((537, 40))
-
-
-
+        text_surface = Surface((132, 669), (537, 40), (22, 22, 22), 255)
 
         texts.append(fill_text)
         texts.append(bucket_text)
         while running:
-
 
             # Event handling loop
             for event in pg.event.get():
@@ -205,14 +202,11 @@ class UI:
                             for x in range(self.map_x):
                                 if x != 0:
                                     map_to_save += ", "
-                                map_to_save += f"{self.map_buttons[x + y*self.map_x].value}"
+                                map_to_save += f"{self.map_buttons[x + y * self.map_x].value}"
                             map_to_save = map_to_save.strip()
                         with open("map.txt", "w") as f:
                             f.write(map_to_save)
                         print("Saved!")
-
-
-
 
                 if event.type == pg.MOUSEBUTTONDOWN or (event.type == pg.MOUSEMOTION and fill_mode):
                     if not fill_mode:
@@ -234,7 +228,7 @@ class UI:
                         button.is_clicked(event, self.selected_material)
 
                     # Print details of the mouse click to the console  # print(  #     f"Mouse button pressed at position: {event.pos}, Button: {event.button}")  # elif event.type == pg.MOUSEBUTTONUP:  #     # Optionally, detect mouse button release  #     print(f"Mouse button released at position: {event.pos}, Button: {event.button}")
-            text_surface.fill([22, 22, 22])
+            text_surface.surface.fill((22, 22, 22))
             for i in range(len(texts)):
                 element = texts[i]
                 match i:
@@ -246,8 +240,8 @@ class UI:
                         value = False
 
                 element.update_value(str(value))
-                text_surface.blit(element.text, element.text_rect)
-                screen.blit(text_surface, (132, 669))
+                text_surface.surface.blit(element.text, element.text_rect)
+                screen.blit(text_surface.surface, (text_surface.x, text_surface.y))
 
             for button in self.buttons:
                 button.is_under_cursor()

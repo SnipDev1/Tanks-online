@@ -1,7 +1,7 @@
 def set_map():
     string_to_write = ""
     x_size = 32
-    y_size = 64
+    y_size = 32
     for y in range(y_size):
         if y != 0:
             string_to_write += ";"
