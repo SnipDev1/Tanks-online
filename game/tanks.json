@@ -1,0 +1,17 @@
+{
+  "light_tank": {
+    "health": 100,
+    "speed": 100,
+    "size": [100, 100],
+    "collision_size": [90, 90],
+    "rotation_speed": 100,
+    "shot_damage": 100,
+    "shot_speed": 100,
+    "reload_time": 3,
+    "ammo_capacity": 100,
+    "id": 0,
+    "color": [200, 200, 200],
+    "need_to_be_shown_in_editor": false,
+    "is_able_to_collide": true
+  }
+}

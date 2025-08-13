@@ -129,8 +129,7 @@ class UI:
         screen = pg.display.set_mode((screen_width, screen_height))
         pg.display.set_caption("Map Editor")
 
-        background = pg.Surface(screen.get_size())
-        background = background.convert()
+        background = pg.Surface(screen.get_size()).convert()
         bg_image = self.bg_image
         bg_image = bg_image.convert()
         screen.blit(bg_image, (0, 0))

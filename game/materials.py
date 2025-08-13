@@ -8,7 +8,7 @@ class Sprites:
     def associate_id_with_names(self):
         self.res_dictionary = {}
         for key, value in self.texture_dictionary.items():
-            if value['need_to_be_shown']:
+            if value['need_to_be_shown_in_editor']:
                 self.res_dictionary[value["id"]] = key
 
     def set_image_paths(self):
@@ -32,9 +32,16 @@ class Sprites:
 
     def get_image_path(self, material_name):
         if material_name in self.texture_dictionary:
-            return self.texture_dictionary[material_name]['path']
+            return self.texture_dictionary[material_name]['texture_path']
         else:
-            return self.texture_dictionary["blank"]['path']
+            return self.texture_dictionary["blank"]['texture_path']
+
+    def get_material_data(self, material_name):
+        if material_name in self.texture_dictionary:
+            return self.texture_dictionary[material_name]
+        else:
+            return self.texture_dictionary["blank"]
+
 
 
 if __name__ == '__main__':
