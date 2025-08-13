@@ -11,6 +11,7 @@ class Game:
         self.box_image = None
         self.enemy_image = None
         self.floor_image = None
+        self.active_objects = []
 
     def parse_images(self):
         import materials
@@ -31,11 +32,12 @@ class Game:
         background.blit(bg_sprite, (0, 0))
 
         running = True
-        test_obj = game_objects.Box((300, 300), 0, 'Box1', screen)
-        another_test_obj = game_objects.Box((400, 400), 0, 'Box2', screen)
-        objects_to_collide = [test_obj.obj_rect, another_test_obj.obj_rect]
-        tank = game_objects.LightTank([100, 100], 0, 'LT', screen, objects_to_collide)
-
+        test_obj = game_objects.Box((300, 300), 0, 'Box1', screen, self)
+        another_test_obj = game_objects.Box((400, 400), 0, 'Box2', screen, self)
+        self.active_objects = [test_obj.game_object_class, another_test_obj.game_object_class]
+        tank = game_objects.LightTank([100, 100], 0, 'LT', screen, self)
+        # projectile = game_objects.ProjectileEmitter(100, 100, [500, 500], 90, screen)
+        # projectile.shoot()
         while running:
             dt = clock.tick(clock.get_fps()) / 1000
             # Event handling loop
@@ -43,6 +45,8 @@ class Game:
                 if event.type == pg.QUIT:
                     running = False
                 if event.type == pg.KEYDOWN:
+                    if event.key == pg.K_SPACE:
+                        tank.projectile_emitter.shoot()
                     if event.key == pg.K_w:
                         tank.change_moving_state(True, True)
                     elif event.key == pg.K_s:
@@ -60,9 +64,10 @@ class Game:
                         tank.change_rotation_state(False, True)
                     elif event.key == pg.K_a:
                         tank.change_rotation_state(False, False)
-            tank.update_inputs(dt)
+            tank.update_tank(dt)
             screen.blit(background, (0, 0))
             tank.update_object()
+            tank.projectile_emitter.move_projectiles(dt)
             test_obj.update_object()
             another_test_obj.update_object()
             pg.display.flip()

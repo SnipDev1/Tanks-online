@@ -16,6 +16,7 @@
   },
   "box": {
     "texture_path": "sprites/objects/box.png",
+    "destructible": true,
     "health": 100,
     "id": 2,
     "color": [255, 255, 0],
@@ -60,6 +61,23 @@
   },
   "light_tank": {
     "texture_path": "sprites/tanks/green_tank.png",
+    "id": 101,
+    "color": [0, 0, 0],
+    "need_to_be_shown_in_editor": false
+  },
+  "bullet": {
+    "health": 99999999999999999999999,
+    "texture_path": "sprites/objects/bullet.png",
+    "id": 5,
+    "color": [255, 121, 0],
+    "size": [40, 40],
+    "speed": 10,
+    "collision_size": [40, 40],
+    "need_to_be_shown_in_editor": false,
+    "is_able_to_collide": false
+  },
+  "breaking_stages": {
+    "texture_path": ["sprites/breaking_textures/1.png", "sprites/breaking_textures/2.png", "sprites/breaking_textures/3.png"],
     "id": 101,
     "color": [0, 0, 0],
     "need_to_be_shown_in_editor": false
