@@ -12,6 +12,8 @@ class Game:
         self.enemy_image = None
         self.floor_image = None
         self.active_objects = []
+        self.objects_to_update = []
+        self.anim_sequences = []
 
     def parse_images(self):
         import materials
@@ -33,13 +35,16 @@ class Game:
 
         running = True
         test_obj = game_objects.Box((300, 300), 0, 'Box1', screen, self)
+        # explosion = game_objects.Explosion("explosion_2",(500, 500), 0, 'expl', screen, self)
         another_test_obj = game_objects.Box((400, 400), 0, 'Box2', screen, self)
         self.active_objects = [test_obj.game_object_class, another_test_obj.game_object_class]
         tank = game_objects.LightTank([100, 100], 0, 'LT', screen, self)
+        self.objects_to_update = [tank, test_obj, another_test_obj]
         # projectile = game_objects.ProjectileEmitter(100, 100, [500, 500], 90, screen)
         # projectile.shoot()
         while running:
-            dt = clock.tick(clock.get_fps()) / 1000
+            dt = clock.tick(144) / 1000
+            # print(clock.get_fps())
             # Event handling loop
             for event in pg.event.get():
                 if event.type == pg.QUIT:
@@ -64,12 +69,21 @@ class Game:
                         tank.change_rotation_state(False, True)
                     elif event.key == pg.K_a:
                         tank.change_rotation_state(False, False)
-            tank.update_tank(dt)
+
             screen.blit(background, (0, 0))
-            tank.update_object()
-            tank.projectile_emitter.move_projectiles(dt)
-            test_obj.update_object()
-            another_test_obj.update_object()
+
+            # Обновляем только активные объекты
+            tank.update_tank(dt)
+
+            for obj in self.objects_to_update:
+                if obj.isAlive:  # Обновляем только живые объекты
+                    obj.update_object()
+
+            # Обновляем анимации
+            for anim in self.anim_sequences[:]:
+                # print(self.anim_sequences)
+                anim.sprite_sequencer()
+
             pg.display.flip()
 
         pg.quit()

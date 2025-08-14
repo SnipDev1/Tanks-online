@@ -1,5 +1,6 @@
 import json
 import math
+import time
 
 import pygame as pg
 
@@ -7,24 +8,61 @@ import materials
 import utils
 
 
+class Decals:
+    def __init__(self, decals_coef=0.2, sprites=materials.Sprites(), decals_name="breaking_stages", object=None, rotation=0):
+        self.decals_coef = decals_coef
+        self.sprites = sprites
+        self.stages = []
+        self.breaking_decals = []
+        self.object = object
+        self.rotation = rotation
+        self.default_object = object.copy()
+
+    def load_decals(self, health):
+        paths = self.sprites.get_image_path('breaking_stages')
+        self.stages.append(health)
+        self.breaking_decals = utils.load_image_sequence(paths)
+        step = (health - health * self.decals_coef) // len(self.breaking_decals)
+        for i in range(len(self.breaking_decals)):
+            self.stages.append(step * (i + 1))
+        self.stages.reverse()
+        # print(self.stages)
+
+    def delete_decals(self):
+        obj_sprite = self.default_object
+        obj_sprite = pg.transform.scale(obj_sprite, self.object.get_size())
+        obj_sprite = pg.transform.rotate(obj_sprite, self.rotation)
+        obj_pos = [self.object.get_rect().x, self.object.get_rect().y]
+        self.object.blit(obj_sprite, obj_pos)
+
+    def check_decal(self, health):
+        self.delete_decals()
+        index = utils.nearest_value(self.stages, health, True)
+        try:
+            decal = self.breaking_decals[index]
+        except IndexError:
+            return
+        decal = pg.transform.scale(decal, self.object.get_size())
+        decal = pg.transform.rotate(decal, self.rotation)
+        decal_pos = [self.object.get_rect().x, self.object.get_rect().y]
+        self.object.blit(decal, decal_pos)
+
+
 class GameObject:
     @staticmethod
     def get_texture_path(name):
-
         texture_path = materials.Sprites().get_image_path(name)
         return texture_path
 
     @staticmethod
     def read_json(json_name, object_name):
-
         with open(json_name, "r") as f:
             data = f.read()
         json_string = json.loads(data)
         return json_string[object_name]
 
     def __init__(self, health=100.0, is_able_to_collide=True, coordinates=[0, 0], name='blank', tag='blank', sprite_size=[100, 100], screen=None, texture_path=None, rotation=0,
-                 collision_size=[100, 100], has_texture=True, game_class=None, destructible=False):
-
+                 collision_size=[100, 100], has_texture=True, game_class=None, destructible=False, has_animation=False, frame_duration=0, explosion_anim=None, parent_object=None, is_anim_cycled=False, emitter_offset=0):
         self.name = name
         self.game_object_class = self
         self.screen = screen
@@ -34,96 +72,111 @@ class GameObject:
         self.tag = tag
         self.health = health
         self.start_health = health
+        self.parent_object = parent_object
         self.is_able_to_collide = is_able_to_collide
         self.destructible = destructible
         self.coordinates = coordinates
         self.texture_path = texture_path
         self.sprites = materials.Sprites()
+        self.emitter_offset = emitter_offset
         self.game_class = game_class
-        # print(self.tag, self.object_index, self.game_class)
+        self.is_cycled = is_anim_cycled
         self.obj_sprite = utils.load_image(self.sprites.get_image_path('box'))
-        self.default_obj_sprite = self.obj_sprite.copy()
-        self.breaking_decals = []
-        self.stages = []
-        if is_able_to_collide and destructible:
-            self.load_decals()
-            print(self.stages)
+        if has_texture and not has_animation:
+            self.obj_sprite = utils.load_image(self.sprites.get_image_path(self.name))
+
         self.isAlive = True
 
-        if has_texture:
-            self.obj_sprite = utils.load_image(self.sprites.get_image_path(self.name))
         self.obj_rect = self.obj_sprite.get_rect()
         self.obj_rect.x = self.coordinates[0]
         self.obj_rect.y = self.coordinates[1]
+        self.decals = Decals(sprites=self.sprites, object=self.obj_sprite, rotation=self.rotation)
+        if is_able_to_collide and destructible:
+            self.decals.load_decals(self.start_health)
 
-    def load_decals(self):
-        paths = self.sprites.get_image_path('breaking_stages')
-        self.stages.append(self.start_health)
-        for i in range(len(paths)):
-            path = paths[i]
-            self.breaking_decals.append(utils.load_image(path))
-        step = (self.start_health - self.start_health * 0.2) // len(self.breaking_decals)
-        for i in range(len(self.breaking_decals)):
-            self.stages.append(step*(i+1))
-        self.stages.reverse()
-
-
-    def delete_decals(self):
-        obj_sprite = self.default_obj_sprite
-        obj_sprite = pg.transform.scale(obj_sprite, self.obj_sprite.get_size())
-        obj_sprite = pg.transform.rotate(obj_sprite, self.rotation)
-        obj_pos = [self.obj_sprite.get_rect().x, self.obj_sprite.get_rect().y]
-        self.obj_sprite.blit(obj_sprite, obj_pos)
-
-    def check_decal(self):
-        self.delete_decals()
-        index = utils.nearest_value(self.stages, self.health, True)
-        try:
-            decal = self.breaking_decals[index]
-        except IndexError:
-            return
-        decal = pg.transform.scale(decal, self.obj_sprite.get_size())
-        decal = pg.transform.rotate(decal, self.rotation)
-        decal_pos = [self.obj_sprite.get_rect().x, self.obj_sprite.get_rect().y]
-        self.obj_sprite.blit(decal, decal_pos)
-
-
-
-
-    def find_object_index(self):
-        try:
-            return self.game_class.active_objects.index(self)
-        except ValueError:
-            print("DICK")
-            print(self, self.game_class.active_objects)
-            return -1  # или другое значение по умолчанию
+        self.explosion_anim = explosion_anim
+        if has_animation:
+            self.animation = Animation(anim_name=self.name, sprites=self.sprites, game_object=self, frame_duration=frame_duration, is_anim_cycled=is_anim_cycled)
 
     def decrease_health(self, amount_to_decrease):
-        # print(self.game_class)
-
+        # Убираем принты для оптимизации
         self.health -= amount_to_decrease
-        self.check_decal()
-        print(f"OBJECT {self.tag}, HEALTH: {self.health}")
+        self.decals.check_decal(self.health)
         if self.health <= 0:
             self.isAlive = False
+            if self.explosion_anim is not None:
+                self.game_class.anim_sequences.append(self.explosion_anim.animation)
             self.destroy()
 
     def destroy(self):
-        object_index = self.find_object_index()
+        object_index = utils.find_object_index_in_list(self, self.game_class.active_objects)
         self.game_class.active_objects.pop(object_index)
 
     def update_object(self):
         if not self.isAlive:
             return
-        obj_sprite = pg.transform.scale(self.obj_sprite, self.sprite_size)
-        copy_obj = pg.transform.rotate(obj_sprite, self.rotation)
+        if self.parent_object is not None:
+            # print(self.tag)
+            self.coordinates[0] = self.parent_object.coordinates[0]
+            self.coordinates[1] = self.parent_object.coordinates[1]
+            self.rotation = self.parent_object.rotation
+            self.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], self.emitter_offset, self.rotation)
         self.obj_rect.x = self.coordinates[0]
         self.obj_rect.y = self.coordinates[1]
-        self.obj_rect.size = self.collision_size
+        obj_sprite = pg.transform.scale(self.obj_sprite, self.sprite_size)
+        copy_obj = pg.transform.rotate(obj_sprite, self.rotation)
 
-        # if self.tag == "Box1":
-        # print(self.obj_rect, self.coordinates)
+        self.obj_rect.size = self.collision_size
         self.screen.blit(copy_obj, (self.coordinates[0] - int(copy_obj.get_width() / 2), self.coordinates[1] - int(copy_obj.get_height() / 2)))
+
+
+class Animation:
+    def __init__(self, anim_name="explosion", sprites=materials.Sprites(), coordinates=[100, 100], screen=None, rotation=0, size=[100, 100], frame_duration=0.05, game_object=None, is_anim_cycled=False):
+        self.name = anim_name
+        self.sprites = sprites
+        self.coordinates = coordinates
+        self.screen = screen
+        self.rotation = rotation
+        self.size = size
+        self.frame_duration = frame_duration
+        self.game_object = game_object
+
+        self.sprites_set = utils.load_image_sequence(self.sprites.get_image_path(anim_name))
+        self.game_object.obj_sprite = self.sprites_set[0]
+        self.game_class = self.game_object.game_class
+        self.original_sprite = self.game_object.obj_sprite.copy()
+        self.last_frame_time = time.time()
+        self.current_frame = 0
+        self.is_anim_cycled = is_anim_cycled
+        self.is_anim_ended = False
+
+    def sprite_sequencer(self):
+        if self.is_anim_ended:
+            return
+
+        # Убираем принты для оптимизации
+        if time.time() - self.last_frame_time >= self.frame_duration:
+            self.game_object.obj_sprite = self.sprites_set[self.current_frame]
+            # if self.game_object.parent_object is not None:
+            #     self.game_object.obj_sprite.x = self.game_object.parent_object.coordinates[0]
+            #     self.game_object.obj_sprite.y = self.game_object.parent_object.coordinates[1]
+
+            self.last_frame_time = time.time()
+            self.current_frame += 1
+
+            if self.is_anim_cycled:
+                if self.current_frame == len(self.sprites_set) - 1:
+                    self.current_frame = 0
+            elif not self.is_anim_cycled and self.current_frame >= len(self.sprites_set) - 1:
+                self.game_object.obj_sprite = self.original_sprite
+                self.is_anim_ended = True
+                self.delete_anim_from_sequencer()
+
+        self.game_object.update_object()
+
+    def delete_anim_from_sequencer(self):
+        object_index = utils.find_object_index_in_list(self, self.game_class.anim_sequences)
+        self.game_class.anim_sequences.pop(object_index)
 
 
 class ProjectileEmitter(GameObject):
@@ -135,26 +188,22 @@ class ProjectileEmitter(GameObject):
         super().__init__(screen=screen, has_texture=False, coordinates=emitter_coordinates, rotation=emitter_rotation, health=99999999, is_able_to_collide=False, collision_size=[0, 0],
                          sprite_size=[0, 0], game_class=game_class)
 
-    def get_emitter_offset(self, tank_center_x, tank_center_y, gun_length, gun_angle_degrees):
-
-        angle_rad = math.radians(-gun_angle_degrees - 90)
-
-        offset_x = gun_length * math.cos(angle_rad)
-        offset_y = gun_length * math.sin(angle_rad)
-
-        emitter_x = tank_center_x + offset_x
-        emitter_y = tank_center_y + offset_y
-
-        return [emitter_x, emitter_y]
 
     def shoot(self):
         # print("bulletasasdasd " + str(self.game_class))
         new_bullet = Projectile(self.projectile_damage, self.projectile_speed, self.coordinates, self.rotation, self.screen, self.game_class)
+        explosion = AnimEmitter(name="explosion_2", coordinates=self.coordinates, rotation=self.rotation, tag="shot_expl", screen=self.screen, game_class=self.game_class, sprite_size=[40, 40], parent_object=self)
+        explosion.coordinates = self.coordinates
+        explosion.rotation = self.rotation
+        self.game_class.anim_sequences.append(explosion.animation)
         self.bullets.append(new_bullet)
 
     def move_projectiles(self, dt):
-        for bullet in self.bullets:
-            # print(bullet.coordinates)
+        # Используем копию списка для безопасного удаления
+        for bullet in self.bullets[:]:
+            if bullet.met_obstacle:
+                self.bullets.remove(bullet)
+                continue
             bullet.move_forward(dt)
         self.update_projectiles()
 
@@ -191,20 +240,33 @@ class Projectile(Active):
         self.update_collisions()
         self.is_able_to_collide = True
         self.met_obstacle = False
+        self.screen = screen
+        self.screen_rect = screen.get_rect() if screen else None
+        self.start_time = time.time()
+        self.lifetime = 3.0  # 3 секунды жизни пули
+        self.explosion = AnimEmitter(name="explosion_2", coordinates=emitter_coordinates, rotation=0, tag="expl", screen=screen, game_class=self.game_class)
         material = self.read_json("materials.json", self.name)
 
         health = material['health']
         sprite_size = material['size']
         collision_size = material['collision_size']
         # print(self.collision_list)
-        # texture_path = self.get_teaxture_path(self.name)
+        # texture_path = self.get_texture_path(self.name)
         # super().__init__(screen=screen, name=self.name, health=health, coordinates=emitter_coordinates, rotation=emitter_rotation, is_able_to_collide=True, sprite_size=sprite_size, game_class=game_class)
         super().__init__(health, self.is_able_to_collide, emitter_coordinates, self.name, self.tag, sprite_size, screen, "", emitter_rotation, game_class)
 
-
-
     def move_forward(self, dt):
         if self.met_obstacle:
+            return
+
+        # Проверка времени жизни
+        if time.time() - self.start_time > self.lifetime:
+            self.met_obstacle = True
+            return
+
+        # Проверка выхода за пределы экрана
+        if self.screen_rect and not self.screen_rect.collidepoint(self.coordinates):
+            self.met_obstacle = True
             return
         self.update_collisions()
         rad_rotation = math.radians(self.rotation)
@@ -222,6 +284,8 @@ class Projectile(Active):
             self.update_object()
 
     def on_collision(self, collided_with):
+        self.explosion.coordinates = self.coordinates
+        self.game_class.anim_sequences.append(self.explosion.animation)
         for i in collided_with:
             self.active_objects[i].decrease_health(self.projectile_damage)
 
@@ -241,17 +305,25 @@ class Tank(Active):
         self.rotating_clockwise = False
         self.moving = False
         self.is_forward = True
-
         self.projectile_emitter = ProjectileEmitter(self.shot_damage, self.shot_speed, self.coordinates, self.rotation, self.screen, game_class)
-        self.projectile_emitter.coordinates = self.projectile_emitter.get_emitter_offset(self.coordinates[0], self.coordinates[1], 50, self.rotation)
+        self.smoke_emitter = AnimEmitter(name="smoke", coordinates=self.coordinates, rotation=self.rotation, tag="shot_expl", screen=self.screen, game_class=self.game_class, sprite_size=[40, 40], is_anim_cycled=True, parent_object=self, emitter_offset=-40)
+        self.game_class.anim_sequences.append(self.smoke_emitter.animation)
+
+        self.projectile_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], 50, self.rotation)
 
     def update_tank(self, dt):
+        # Обновляем коллизии один раз за кадр
         self.update_collisions()
+
         if self.rotating:
             self.turn(self.rotating_clockwise, dt)
+
         if self.moving:
             self.move_forward(dt)
+
         self.projectile_emitter.move_projectiles(dt)
+        # self.smoke_emitter.rotation = self.rotation
+        # self.smoke_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], -40, self.rotation)
 
     def turn(self, clockwise, dt):
         if clockwise:
@@ -259,7 +331,7 @@ class Tank(Active):
         else:
             self.rotation += self.rotation_speed * dt
         self.projectile_emitter.rotation = self.rotation
-        self.projectile_emitter.coordinates = self.projectile_emitter.get_emitter_offset(self.coordinates[0], self.coordinates[1], 50, self.rotation)
+        self.projectile_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], 50, self.rotation)
 
     def move_forward(self, dt):
 
@@ -279,7 +351,7 @@ class Tank(Active):
         # self.projectile_emitter.coordinates = [self.coordinates[0], self.coordinates[1] - 50]
         # print(self.coordinates, self.rotation)
         self.update_object()
-        self.projectile_emitter.coordinates = self.projectile_emitter.get_emitter_offset(self.coordinates[0], self.coordinates[1], 50, self.rotation)
+        self.projectile_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], 50, self.rotation)
 
     def change_moving_state(self, state, is_forward):
         self.moving = state
@@ -318,4 +390,21 @@ class Box(GameObject):
         collision_size = material['collision_size']
         sprite_size = material['size']
         destructible = material['destructible']
-        super().__init__(name=name, coordinates=coordinates, rotation=rotation, tag=tag, screen=screen, sprite_size=sprite_size, collision_size=collision_size, game_class=game_class, destructible=destructible)
+        explosion = AnimEmitter(name="explosion", coordinates=coordinates, rotation=0, tag="expl", screen=screen, game_class=game_class)
+        super().__init__(name=name, coordinates=coordinates, rotation=rotation, tag=tag, screen=screen, sprite_size=sprite_size, collision_size=collision_size, game_class=game_class,
+                         destructible=destructible, explosion_anim=explosion)
+
+
+class AnimEmitter(GameObject):
+    def __init__(self, name, coordinates, rotation, tag, screen, game_class, sprite_size=None, parent_object=None, is_anim_cycled=False, emitter_offset=0):
+        import materials
+        name = name
+        material = materials.Sprites().get_material_data(name)
+        collision_size = material['collision_size']
+        if sprite_size is None:
+            sprite_size = material['size']
+        destructible = material['destructible']
+        has_animation = material['has_anim']
+        frame_duration = material['frame_duration']
+        super().__init__(name=name, coordinates=coordinates, rotation=rotation, tag=tag, screen=screen, sprite_size=sprite_size, collision_size=collision_size, game_class=game_class,
+                         destructible=destructible, has_animation=True, frame_duration=frame_duration, parent_object=parent_object, is_anim_cycled=is_anim_cycled, emitter_offset=emitter_offset)
