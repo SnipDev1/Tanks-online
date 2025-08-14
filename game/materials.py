@@ -36,6 +36,12 @@ class Sprites:
         else:
             return self.texture_dictionary["blank"]['texture_path']
 
+    def get_anim_sequence(self, material_name):
+        if material_name in self.texture_dictionary:
+            return self.texture_dictionary[material_name]['anim_sequence']
+        else:
+            return self.texture_dictionary["blank"]['texture_path']
+
     def get_material_data(self, material_name):
         if material_name in self.texture_dictionary:
             return self.texture_dictionary[material_name]

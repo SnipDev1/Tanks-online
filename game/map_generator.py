@@ -1,7 +1,7 @@
 def set_map():
     string_to_write = ""
-    x_size = 32
-    y_size = 32
+    x_size = 8
+    y_size = 8
     for y in range(y_size):
         if y != 0:
             string_to_write += ";"
@@ -30,6 +30,10 @@ def load_map():
             loaded_map.append(row)
     y = len(loaded_map)
     x = len(loaded_map[0])
+    print(x, y)
+
+
+#load_map()
 set_map()
 
 

@@ -25,8 +25,7 @@ class Decals:
         step = (health - health * self.decals_coef) // len(self.breaking_decals)
         for i in range(len(self.breaking_decals)):
             self.stages.append(step * (i + 1))
-        self.stages.reverse()
-        # print(self.stages)
+        self.stages.reverse()  # print(self.stages)
 
     def delete_decals(self):
         obj_sprite = self.default_object
@@ -37,7 +36,10 @@ class Decals:
 
     def check_decal(self, health):
         self.delete_decals()
-        index = utils.nearest_value(self.stages, health, True)
+        try:
+            index = utils.nearest_value(self.stages, health, True)
+        except ValueError:
+            return
         try:
             decal = self.breaking_decals[index]
         except IndexError:
@@ -62,7 +64,8 @@ class GameObject:
         return json_string[object_name]
 
     def __init__(self, health=100.0, is_able_to_collide=True, coordinates=[0, 0], name='blank', tag='blank', sprite_size=[100, 100], screen=None, texture_path=None, rotation=0,
-                 collision_size=[100, 100], has_texture=True, game_class=None, destructible=False, has_animation=False, frame_duration=0, explosion_anim=None, parent_object=None, is_anim_cycled=False, emitter_offset=0):
+                 collision_size=[100, 100], has_texture=True, game_class=None, destructible=False, has_animation=False, frame_duration=0, explosion_anim=None, parent_object=None, is_anim_cycled=False,
+                 emitter_offset=0):
         self.name = name
         self.game_object_class = self
         self.screen = screen
@@ -131,7 +134,8 @@ class GameObject:
 
 
 class Animation:
-    def __init__(self, anim_name="explosion", sprites=materials.Sprites(), coordinates=[100, 100], screen=None, rotation=0, size=[100, 100], frame_duration=0.05, game_object=None, is_anim_cycled=False):
+    def __init__(self, anim_name="explosion", sprites=materials.Sprites(), coordinates=[100, 100], screen=None, rotation=0, size=[100, 100], frame_duration=0.05, game_object=None,
+                 is_anim_cycled=False, is_anim_active=True):
         self.name = anim_name
         self.sprites = sprites
         self.coordinates = coordinates
@@ -141,7 +145,7 @@ class Animation:
         self.frame_duration = frame_duration
         self.game_object = game_object
 
-        self.sprites_set = utils.load_image_sequence(self.sprites.get_image_path(anim_name))
+        self.sprites_set = utils.load_image_sequence(self.sprites.get_anim_sequence(anim_name))
         self.game_object.obj_sprite = self.sprites_set[0]
         self.game_class = self.game_object.game_class
         self.original_sprite = self.game_object.obj_sprite.copy()
@@ -149,25 +153,29 @@ class Animation:
         self.current_frame = 0
         self.is_anim_cycled = is_anim_cycled
         self.is_anim_ended = False
+        self.is_anim_active = is_anim_active  # if self.name == "light_tank":  #     print(self.sprites_set)
 
     def sprite_sequencer(self):
         if self.is_anim_ended:
             return
-
+        if not self.is_anim_active:
+            return
         # Убираем принты для оптимизации
         if time.time() - self.last_frame_time >= self.frame_duration:
-            self.game_object.obj_sprite = self.sprites_set[self.current_frame]
+            # if self.name == "light_tank":
+            #     print(self.current_frame)
+
             # if self.game_object.parent_object is not None:
             #     self.game_object.obj_sprite.x = self.game_object.parent_object.coordinates[0]
             #     self.game_object.obj_sprite.y = self.game_object.parent_object.coordinates[1]
-
+            self.game_object.obj_sprite = self.sprites_set[self.current_frame]
             self.last_frame_time = time.time()
             self.current_frame += 1
-
             if self.is_anim_cycled:
-                if self.current_frame == len(self.sprites_set) - 1:
+                if self.current_frame == len(self.sprites_set):
                     self.current_frame = 0
-            elif not self.is_anim_cycled and self.current_frame >= len(self.sprites_set) - 1:
+
+            elif not self.is_anim_cycled and self.current_frame >= len(self.sprites_set):
                 self.game_object.obj_sprite = self.original_sprite
                 self.is_anim_ended = True
                 self.delete_anim_from_sequencer()
@@ -180,19 +188,21 @@ class Animation:
 
 
 class ProjectileEmitter(GameObject):
-    def __init__(self, projectile_damage, projectile_speed, emitter_coordinates, emitter_rotation, screen, game_class):
+    def __init__(self, projectile_damage, projectile_speed, emitter_coordinates, emitter_rotation, screen, game_class, rectangles_to_exclude):
         self.projectile_damage = projectile_damage
         self.projectile_speed = projectile_speed
+        self.rectangles_to_exclude = rectangles_to_exclude
         self.bullets = []
         self.active_objects = game_class.active_objects
         super().__init__(screen=screen, has_texture=False, coordinates=emitter_coordinates, rotation=emitter_rotation, health=99999999, is_able_to_collide=False, collision_size=[0, 0],
                          sprite_size=[0, 0], game_class=game_class)
-
+        self.rectangles_to_exclude.append(self.obj_rect)
 
     def shoot(self):
         # print("bulletasasdasd " + str(self.game_class))
-        new_bullet = Projectile(self.projectile_damage, self.projectile_speed, self.coordinates, self.rotation, self.screen, self.game_class)
-        explosion = AnimEmitter(name="explosion_2", coordinates=self.coordinates, rotation=self.rotation, tag="shot_expl", screen=self.screen, game_class=self.game_class, sprite_size=[40, 40], parent_object=self)
+        new_bullet = Projectile(self.projectile_damage, self.projectile_speed, self.coordinates, self.rotation, self.screen, self.game_class, self.rectangles_to_exclude)
+        explosion = AnimEmitter(name="explosion_2", coordinates=self.coordinates, rotation=self.rotation, tag="shot_expl", screen=self.screen, game_class=self.game_class, sprite_size=[40, 40],
+                                parent_object=self)
         explosion.coordinates = self.coordinates
         explosion.rotation = self.rotation
         self.game_class.anim_sequences.append(explosion.animation)
@@ -221,15 +231,19 @@ class Active(GameObject):
         self.active_objects = game_class.active_objects
         self.collision_list = []
 
-    def update_collisions(self):
+    def update_collisions(self, rect_to_exclude=None):
         self.collision_list = []
         for active_object in self.active_objects:
             if active_object != self:
                 self.collision_list.append(active_object.obj_rect)
+        if rect_to_exclude is not None:
+            for rect in rect_to_exclude:
+                if rect in self.collision_list:
+                    self.collision_list.remove(rect)
 
 
 class Projectile(Active):
-    def __init__(self, projectile_damage, projectile_speed, emitter_coordinates, emitter_rotation, screen, game_class):
+    def __init__(self, projectile_damage, projectile_speed, emitter_coordinates, emitter_rotation, screen, game_class, rect_to_exclude):
         self.name = 'bullet'
         self.tag = self.name
         self.projectile_damage = projectile_damage
@@ -237,12 +251,13 @@ class Projectile(Active):
         self.game_class = game_class
         self.active_objects = game_class.active_objects
         self.collision_list = []
-        self.update_collisions()
+        self.update_collisions(rect_to_exclude)
         self.is_able_to_collide = True
         self.met_obstacle = False
         self.screen = screen
         self.screen_rect = screen.get_rect() if screen else None
         self.start_time = time.time()
+        self.rect_to_exclude = rect_to_exclude
         self.lifetime = 3.0  # 3 секунды жизни пули
         self.explosion = AnimEmitter(name="explosion_2", coordinates=emitter_coordinates, rotation=0, tag="expl", screen=screen, game_class=self.game_class)
         material = self.read_json("materials.json", self.name)
@@ -259,16 +274,14 @@ class Projectile(Active):
         if self.met_obstacle:
             return
 
-        # Проверка времени жизни
         if time.time() - self.start_time > self.lifetime:
             self.met_obstacle = True
             return
 
-        # Проверка выхода за пределы экрана
         if self.screen_rect and not self.screen_rect.collidepoint(self.coordinates):
             self.met_obstacle = True
             return
-        self.update_collisions()
+        self.update_collisions(self.rect_to_exclude)
         rad_rotation = math.radians(self.rotation)
         sin = math.sin(rad_rotation)
         cos = math.cos(rad_rotation)
@@ -277,7 +290,6 @@ class Projectile(Active):
         self.update_object()
         collided_with = self.obj_rect.collidelistall(self.collision_list)
         if len(self.obj_rect.collidelistall(self.collision_list)) != 0:
-            print(self.obj_rect.collidelistall(self.collision_list))
             self.coordinates = coordinates_before
             self.met_obstacle = True
             self.on_collision(collided_with)
@@ -292,7 +304,7 @@ class Projectile(Active):
 
 class Tank(Active):
     def __init__(self, health: float, is_able_to_collide: bool, coordinates: list, name: str, tag: str, shot_damage: float, shot_speed: float, reload_time: float, ammo_capacity: int, speed: float,
-                 screen, sprite_size, texture_path, rotation, rotation_speed, game_class):
+                 screen, sprite_size, texture_path, rotation, rotation_speed, game_class, frame_duration):
         # print(game_class)
         super().__init__(health, is_able_to_collide, coordinates, name, tag, sprite_size, screen, texture_path, rotation, game_class)
         self.shot_damage = shot_damage
@@ -305,10 +317,14 @@ class Tank(Active):
         self.rotating_clockwise = False
         self.moving = False
         self.is_forward = True
-        self.projectile_emitter = ProjectileEmitter(self.shot_damage, self.shot_speed, self.coordinates, self.rotation, self.screen, game_class)
-        self.smoke_emitter = AnimEmitter(name="smoke", coordinates=self.coordinates, rotation=self.rotation, tag="shot_expl", screen=self.screen, game_class=self.game_class, sprite_size=[40, 40], is_anim_cycled=True, parent_object=self, emitter_offset=-40)
-        self.game_class.anim_sequences.append(self.smoke_emitter.animation)
+        self.tank_animation = Animation(anim_name="light_tank", screen=self.screen, game_object=self, is_anim_cycled=True, frame_duration=frame_duration, is_anim_active=False)
+        self.projectile_emitter = ProjectileEmitter(self.shot_damage, self.shot_speed, self.coordinates, self.rotation, self.screen, game_class, [self.obj_rect])
 
+        self.smoke_emitter = AnimEmitter(name="smoke", coordinates=self.coordinates, rotation=self.rotation, tag="shot_expl", screen=self.screen, game_class=self.game_class, sprite_size=[40, 40],
+                                         is_anim_cycled=True, parent_object=self, emitter_offset=-40)
+
+        self.game_class.anim_sequences.append(self.smoke_emitter.animation)
+        self.game_class.anim_sequences.append(self.tank_animation)
         self.projectile_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], 50, self.rotation)
 
     def update_tank(self, dt):
@@ -320,10 +336,10 @@ class Tank(Active):
 
         if self.moving:
             self.move_forward(dt)
-
-        self.projectile_emitter.move_projectiles(dt)
-        # self.smoke_emitter.rotation = self.rotation
-        # self.smoke_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], -40, self.rotation)
+        self.update_object()
+        self.tank_animation.is_anim_active = self.rotating or self.moving
+        self.projectile_emitter.move_projectiles(
+            dt)  # self.smoke_emitter.rotation = self.rotation  # self.smoke_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], -40, self.rotation)
 
     def turn(self, clockwise, dt):
         if clockwise:
@@ -334,22 +350,39 @@ class Tank(Active):
         self.projectile_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], 50, self.rotation)
 
     def move_forward(self, dt):
-
         rad_rotation = math.radians(self.rotation)
         sin = math.sin(rad_rotation)
         cos = math.cos(rad_rotation)
         dir_multi = 1
         if not self.is_forward:
             dir_multi = -1
+
+        # Рассчитываем новые координаты
+        new_x = self.coordinates[0] - self.speed * sin * dt * dir_multi
+        new_y = self.coordinates[1] - self.speed * cos * dt * dir_multi
+
+        # Получаем размеры экрана
+        screen_width, screen_height = self.screen.get_size()
+
+        # Получаем размеры танка (учитываем, что после поворота размеры могут измениться)
+        tank_width = self.obj_rect.width
+        tank_height = self.obj_rect.height
+
+        # Проверяем границы экрана с учетом размеров танка
+        if (new_x - tank_width / 2 < 0 or
+                new_x + tank_width / 2 > screen_width or
+                new_y - tank_height / 2 < 0 or
+                new_y + tank_height / 2 > screen_height):
+            return  # Не двигаемся, если выходим за границы
+
         coordinates_before = self.coordinates.copy()
-        self.coordinates = [self.coordinates[0] - self.speed * sin * dt * dir_multi, self.coordinates[1] - self.speed * cos * dt * dir_multi]
+        self.coordinates = [new_x, new_y]
         self.update_object()
+
         if len(self.obj_rect.collidelistall(self.collision_list)) != 0:
             print('ALARM')
             self.coordinates = coordinates_before
 
-        # self.projectile_emitter.coordinates = [self.coordinates[0], self.coordinates[1] - 50]
-        # print(self.coordinates, self.rotation)
         self.update_object()
         self.projectile_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], 50, self.rotation)
 
@@ -377,9 +410,20 @@ class LightTank(Tank):
         speed = tank_data['speed']
         size = tank_data['size']
         rotation_speed = tank_data['rotation_speed']
+        frame_duration = tank_data['frame_duration']
         texture_path = self.get_texture_path(name)
         super().__init__(health, is_able_to_collide, coordinates, name, tag, shot_damage, shot_speed, reload_time, ammo_capacity, speed, screen, size, texture_path, rotation, rotation_speed,
-                         game_class)
+                         game_class, frame_duration)
+
+
+class Floor(GameObject):
+    def __init__(self, coordinates, rotation, tag, screen, game_class):
+        import materials
+        name = "floor"
+        material = materials.Sprites().get_material_data(name)
+        sprite_size = material['size']
+        destructible = material['destructible']
+        super().__init__(name=name, coordinates=coordinates, rotation=rotation, tag=tag, screen=screen, sprite_size=sprite_size, game_class=game_class, destructible=destructible)
 
 
 class Box(GameObject):
