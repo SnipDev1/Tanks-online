@@ -15,7 +15,7 @@ def find_object_index_in_list(what_is_looking_for, list_where_to_search):
     try:
         return list_where_to_search.index(what_is_looking_for)
     except ValueError:
-        print("DICK")
+        #print("DICK")
         print(what_is_looking_for, list_where_to_search)
         return -1  # или другое значение по умолчанию
 
@@ -52,7 +52,7 @@ def parse_folder():
         items_in_folder[i] = folder_path + "\\" + items_in_folder[i]
     stringify_output = str(items_in_folder)
     stringify_output = stringify_output.replace("'", '"')
-    print(stringify_output)
+    #print(stringify_output)
     return items_in_folder
 
 

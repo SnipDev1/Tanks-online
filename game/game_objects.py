@@ -65,7 +65,7 @@ class GameObject:
 
     def __init__(self, health=100.0, is_able_to_collide=True, coordinates=[0, 0], name='blank', tag='blank', sprite_size=[100, 100], screen=None, texture_path=None, rotation=0,
                  collision_size=[100, 100], has_texture=True, game_class=None, destructible=False, has_animation=False, frame_duration=0, explosion_anim=None, parent_object=None, is_anim_cycled=False,
-                 emitter_offset=0):
+                 emitter_offset=0, render_layer=0):
         self.name = name
         self.game_object_class = self
         self.screen = screen
@@ -84,11 +84,15 @@ class GameObject:
         self.emitter_offset = emitter_offset
         self.game_class = game_class
         self.is_cycled = is_anim_cycled
+
         self.obj_sprite = utils.load_image(self.sprites.get_image_path('box'))
+        self.render_layer = render_layer
+
         if has_texture and not has_animation:
             self.obj_sprite = utils.load_image(self.sprites.get_image_path(self.name))
 
         self.isAlive = True
+
 
         self.obj_rect = self.obj_sprite.get_rect()
         self.obj_rect.x = self.coordinates[0]
@@ -99,7 +103,10 @@ class GameObject:
 
         self.explosion_anim = explosion_anim
         if has_animation:
-            self.animation = Animation(anim_name=self.name, sprites=self.sprites, game_object=self, frame_duration=frame_duration, is_anim_cycled=is_anim_cycled)
+            self.animation = Animation(anim_name=self.name, sprites=self.sprites, game_object=self, frame_duration=frame_duration, is_anim_cycled=is_anim_cycled, render_layer=render_layer)
+
+        if not has_animation:
+            self.my_render_index = self.game_class.add_object_to_render(self, self.render_layer)
 
     def decrease_health(self, amount_to_decrease):
         # Убираем принты для оптимизации
@@ -113,7 +120,10 @@ class GameObject:
 
     def destroy(self):
         object_index = utils.find_object_index_in_list(self, self.game_class.active_objects)
-        self.game_class.active_objects.pop(object_index)
+        if len(self.game_class.active_objects) != 0 and object_index != -1:
+            self.game_class.active_objects.pop(object_index)
+        # print(f"{self.tag} is destroyed")
+        self.game_class.del_object_from_render(self.my_render_index)
 
     def update_object(self):
         if not self.isAlive:
@@ -126,16 +136,17 @@ class GameObject:
             self.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], self.emitter_offset, self.rotation)
         self.obj_rect.x = self.coordinates[0]
         self.obj_rect.y = self.coordinates[1]
+        self.obj_rect.size = self.collision_size
+
+    def render_object(self):
         obj_sprite = pg.transform.scale(self.obj_sprite, self.sprite_size)
         copy_obj = pg.transform.rotate(obj_sprite, self.rotation)
-
-        self.obj_rect.size = self.collision_size
         self.screen.blit(copy_obj, (self.coordinates[0] - int(copy_obj.get_width() / 2), self.coordinates[1] - int(copy_obj.get_height() / 2)))
 
 
 class Animation:
     def __init__(self, anim_name="explosion", sprites=materials.Sprites(), coordinates=[100, 100], screen=None, rotation=0, size=[100, 100], frame_duration=0.05, game_object=None,
-                 is_anim_cycled=False, is_anim_active=True):
+                 is_anim_cycled=False, is_anim_active=True, render_layer=6):
         self.name = anim_name
         self.sprites = sprites
         self.coordinates = coordinates
@@ -144,7 +155,7 @@ class Animation:
         self.size = size
         self.frame_duration = frame_duration
         self.game_object = game_object
-
+        self.render_layer = render_layer
         self.sprites_set = utils.load_image_sequence(self.sprites.get_anim_sequence(anim_name))
         self.game_object.obj_sprite = self.sprites_set[0]
         self.game_class = self.game_object.game_class
@@ -154,12 +165,18 @@ class Animation:
         self.is_anim_cycled = is_anim_cycled
         self.is_anim_ended = False
         self.is_anim_active = is_anim_active  # if self.name == "light_tank":  #     print(self.sprites_set)
+        # if is_anim_active:
+        self.my_index = None
+
 
     def sprite_sequencer(self):
         if self.is_anim_ended:
             return
         if not self.is_anim_active:
             return
+        if self.my_index is None:
+            # print(f"{self.game_object.tag} active")
+            self.my_index = self.game_class.add_object_to_render(self.game_object, self.render_layer)
         # Убираем принты для оптимизации
         if time.time() - self.last_frame_time >= self.frame_duration:
             # if self.name == "light_tank":
@@ -179,12 +196,16 @@ class Animation:
                 self.game_object.obj_sprite = self.original_sprite
                 self.is_anim_ended = True
                 self.delete_anim_from_sequencer()
+                # self.game_object.destroy()
 
         self.game_object.update_object()
 
     def delete_anim_from_sequencer(self):
         object_index = utils.find_object_index_in_list(self, self.game_class.anim_sequences)
         self.game_class.anim_sequences.pop(object_index)
+        self.game_class.del_object_from_render(self.my_index)
+
+
 
 
 class ProjectileEmitter(GameObject):
@@ -219,14 +240,14 @@ class ProjectileEmitter(GameObject):
 
     def update_projectiles(self):
         for bullet in self.bullets:
-            self.update_object()
+            self.game_object_class.update_object()
 
 
 class Active(GameObject):
-    def __init__(self, health, is_able_to_collide, coordinates, name, tag, sprite_size, screen, texture_path, rotation, game_class):
+    def __init__(self, health, is_able_to_collide, coordinates, name, tag, sprite_size, screen, texture_path, rotation, game_class, render_layer):
         # print(game_class)
         super().__init__(health=health, is_able_to_collide=is_able_to_collide, coordinates=coordinates, name=name, tag=tag, sprite_size=sprite_size, screen=screen, texture_path=texture_path,
-                         rotation=rotation, game_class=game_class)
+                         rotation=rotation, game_class=game_class, render_layer=render_layer)
         # self.game_class = game_class
         self.active_objects = game_class.active_objects
         self.collision_list = []
@@ -265,10 +286,11 @@ class Projectile(Active):
         health = material['health']
         sprite_size = material['size']
         collision_size = material['collision_size']
+        render_layer = 3
         # print(self.collision_list)
         # texture_path = self.get_texture_path(self.name)
         # super().__init__(screen=screen, name=self.name, health=health, coordinates=emitter_coordinates, rotation=emitter_rotation, is_able_to_collide=True, sprite_size=sprite_size, game_class=game_class)
-        super().__init__(health, self.is_able_to_collide, emitter_coordinates, self.name, self.tag, sprite_size, screen, "", emitter_rotation, game_class)
+        super().__init__(health, self.is_able_to_collide, emitter_coordinates, self.name, self.tag, sprite_size, screen, "", emitter_rotation, game_class, render_layer)
 
     def move_forward(self, dt):
         if self.met_obstacle:
@@ -280,6 +302,7 @@ class Projectile(Active):
 
         if self.screen_rect and not self.screen_rect.collidepoint(self.coordinates):
             self.met_obstacle = True
+            self.on_collision()
             return
         self.update_collisions(self.rect_to_exclude)
         rad_rotation = math.radians(self.rotation)
@@ -287,26 +310,29 @@ class Projectile(Active):
         cos = math.cos(rad_rotation)
         coordinates_before = self.coordinates.copy()
         self.coordinates = [self.coordinates[0] - self.projectile_speed * sin * dt, self.coordinates[1] - self.projectile_speed * cos * dt]
-        self.update_object()
+        self.game_object_class.update_object()
+
         collided_with = self.obj_rect.collidelistall(self.collision_list)
         if len(self.obj_rect.collidelistall(self.collision_list)) != 0:
             self.coordinates = coordinates_before
             self.met_obstacle = True
             self.on_collision(collided_with)
-            self.update_object()
+            self.game_object_class.update_object()
 
-    def on_collision(self, collided_with):
-        self.explosion.coordinates = self.coordinates
-        self.game_class.anim_sequences.append(self.explosion.animation)
-        for i in collided_with:
-            self.active_objects[i].decrease_health(self.projectile_damage)
+    def on_collision(self, collided_with=None):
+        if collided_with is not None:
+            self.explosion.coordinates = self.coordinates
+            self.game_class.anim_sequences.append(self.explosion.animation)
+            for i in collided_with:
+                self.active_objects[i].decrease_health(self.projectile_damage)
+        self.destroy()
 
 
 class Tank(Active):
     def __init__(self, health: float, is_able_to_collide: bool, coordinates: list, name: str, tag: str, shot_damage: float, shot_speed: float, reload_time: float, ammo_capacity: int, speed: float,
-                 screen, sprite_size, texture_path, rotation, rotation_speed, game_class, frame_duration):
+                 screen, sprite_size, texture_path, rotation, rotation_speed, game_class, frame_duration, render_layer):
         # print(game_class)
-        super().__init__(health, is_able_to_collide, coordinates, name, tag, sprite_size, screen, texture_path, rotation, game_class)
+        super().__init__(health, is_able_to_collide, coordinates, name, tag, sprite_size, screen, texture_path, rotation, game_class, render_layer)
         self.shot_damage = shot_damage
         self.shot_speed = shot_speed
         self.reload_time = reload_time
@@ -317,11 +343,11 @@ class Tank(Active):
         self.rotating_clockwise = False
         self.moving = False
         self.is_forward = True
-        self.tank_animation = Animation(anim_name="light_tank", screen=self.screen, game_object=self, is_anim_cycled=True, frame_duration=frame_duration, is_anim_active=False)
+        self.tank_animation = Animation(anim_name="light_tank", screen=self.screen, game_object=self, is_anim_cycled=True, frame_duration=frame_duration, is_anim_active=False, render_layer=render_layer)
         self.projectile_emitter = ProjectileEmitter(self.shot_damage, self.shot_speed, self.coordinates, self.rotation, self.screen, game_class, [self.obj_rect])
 
         self.smoke_emitter = AnimEmitter(name="smoke", coordinates=self.coordinates, rotation=self.rotation, tag="shot_expl", screen=self.screen, game_class=self.game_class, sprite_size=[40, 40],
-                                         is_anim_cycled=True, parent_object=self, emitter_offset=-40)
+                                         is_anim_cycled=True, parent_object=self, emitter_offset=-40, render_layer=7)
 
         self.game_class.anim_sequences.append(self.smoke_emitter.animation)
         self.game_class.anim_sequences.append(self.tank_animation)
@@ -336,10 +362,12 @@ class Tank(Active):
 
         if self.moving:
             self.move_forward(dt)
-        self.update_object()
+        self.game_object_class.update_object()
+
         self.tank_animation.is_anim_active = self.rotating or self.moving
-        self.projectile_emitter.move_projectiles(
-            dt)  # self.smoke_emitter.rotation = self.rotation  # self.smoke_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], -40, self.rotation)
+        self.projectile_emitter.move_projectiles(dt)
+        # self.smoke_emitter.rotation = self.rotation
+        # self.smoke_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], -40, self.rotation)
 
     def turn(self, clockwise, dt):
         if clockwise:
@@ -369,21 +397,19 @@ class Tank(Active):
         tank_height = self.obj_rect.height
 
         # Проверяем границы экрана с учетом размеров танка
-        if (new_x - tank_width / 2 < 0 or
-                new_x + tank_width / 2 > screen_width or
-                new_y - tank_height / 2 < 0 or
-                new_y + tank_height / 2 > screen_height):
+        if (new_x - tank_width / 2 < 0 or new_x + tank_width / 2 > screen_width or new_y - tank_height / 2 < 0 or new_y + tank_height / 2 > screen_height):
             return  # Не двигаемся, если выходим за границы
 
         coordinates_before = self.coordinates.copy()
         self.coordinates = [new_x, new_y]
-        self.update_object()
+        self.game_object_class.update_object()
 
         if len(self.obj_rect.collidelistall(self.collision_list)) != 0:
             print('ALARM')
             self.coordinates = coordinates_before
 
-        self.update_object()
+        self.game_object_class.update_object()
+
         self.projectile_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], 50, self.rotation)
 
     def change_moving_state(self, state, is_forward):
@@ -411,9 +437,10 @@ class LightTank(Tank):
         size = tank_data['size']
         rotation_speed = tank_data['rotation_speed']
         frame_duration = tank_data['frame_duration']
+        render_layer = 5
         texture_path = self.get_texture_path(name)
         super().__init__(health, is_able_to_collide, coordinates, name, tag, shot_damage, shot_speed, reload_time, ammo_capacity, speed, screen, size, texture_path, rotation, rotation_speed,
-                         game_class, frame_duration)
+                         game_class, frame_duration, render_layer)
 
 
 class Floor(GameObject):
@@ -423,7 +450,9 @@ class Floor(GameObject):
         material = materials.Sprites().get_material_data(name)
         sprite_size = material['size']
         destructible = material['destructible']
-        super().__init__(name=name, coordinates=coordinates, rotation=rotation, tag=tag, screen=screen, sprite_size=sprite_size, game_class=game_class, destructible=destructible)
+        render_layer = 0
+        super().__init__(name=name, coordinates=coordinates, rotation=rotation, tag=tag, screen=screen, sprite_size=sprite_size, game_class=game_class, destructible=destructible,
+                         render_layer=render_layer)
 
 
 class Box(GameObject):
@@ -434,13 +463,14 @@ class Box(GameObject):
         collision_size = material['collision_size']
         sprite_size = material['size']
         destructible = material['destructible']
+        render_layer = 1
         explosion = AnimEmitter(name="explosion", coordinates=coordinates, rotation=0, tag="expl", screen=screen, game_class=game_class)
         super().__init__(name=name, coordinates=coordinates, rotation=rotation, tag=tag, screen=screen, sprite_size=sprite_size, collision_size=collision_size, game_class=game_class,
-                         destructible=destructible, explosion_anim=explosion)
+                         destructible=destructible, explosion_anim=explosion, render_layer=render_layer)
 
 
 class AnimEmitter(GameObject):
-    def __init__(self, name, coordinates, rotation, tag, screen, game_class, sprite_size=None, parent_object=None, is_anim_cycled=False, emitter_offset=0):
+    def __init__(self, name, coordinates, rotation, tag, screen, game_class, sprite_size=None, parent_object=None, is_anim_cycled=False, emitter_offset=0, render_layer=7):
         import materials
         name = name
         material = materials.Sprites().get_material_data(name)
@@ -450,5 +480,7 @@ class AnimEmitter(GameObject):
         destructible = material['destructible']
         has_animation = material['has_anim']
         frame_duration = material['frame_duration']
+        render_layer = render_layer
         super().__init__(name=name, coordinates=coordinates, rotation=rotation, tag=tag, screen=screen, sprite_size=sprite_size, collision_size=collision_size, game_class=game_class,
-                         destructible=destructible, has_animation=True, frame_duration=frame_duration, parent_object=parent_object, is_anim_cycled=is_anim_cycled, emitter_offset=emitter_offset)
+                         destructible=destructible, has_animation=True, frame_duration=frame_duration, parent_object=parent_object, is_anim_cycled=is_anim_cycled, emitter_offset=emitter_offset,
+                         render_layer=render_layer)

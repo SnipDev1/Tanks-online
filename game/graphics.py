@@ -15,13 +15,22 @@ class Game:
         self.update_order = []
         self.active_objects = []
         self.anim_sequences = []
+        self.objects_to_render = []
         self.game_map = []
         self.tanks = []
         self.tank = None
         self.res_dictionary = materials.Sprites().res_dictionary
-        print(self.res_dictionary)
+        # print(self.res_dictionary)
         self.load_map()
+        self.render_index_counter = 0
 
+    def del_object_from_render(self, render_index):
+        self.objects_to_render = [t for t in self.objects_to_render if t[0] != render_index]  # print("HRU")
+
+    def add_object_to_render(self, game_object, render_layer):
+        self.render_index_counter += 1
+        self.objects_to_render.append((self.render_index_counter, render_layer, game_object))
+        return self.render_index_counter
 
     def spawn_object_by_number(self, number, screen, position):
         obj = None
@@ -45,21 +54,13 @@ class Game:
                 self.tank = obj
                 self.objects_to_update.append(obj)
 
-
-
-
-
-
-
     def initialize_map(self, screen):
         for row in range(len(self.game_map)):
             for column in range(len(self.game_map[row])):
                 element = self.game_map[row][column]
                 self.spawn_object_by_number(element, screen, [column, row])
 
-                # x_coord = buttons_x_shift + map_surface.x + button_x_size * column
-                # y_coord = buttons_y_shift + map_surface.y + button_y_size * row
-                # self.map_buttons.append(Button((x_coord, y_coord), (button_x_size, button_y_size), (255, 255, 255), "", (0, 0, 0), None, row, column, element, True, 100))
+                # x_coord = buttons_x_shift + map_surface.x + button_x_size * column  # y_coord = buttons_y_shift + map_surface.y + button_y_size * row  # self.map_buttons.append(Button((x_coord, y_coord), (button_x_size, button_y_size), (255, 255, 255), "", (0, 0, 0), None, row, column, element, True, 100))
 
     def load_map(self):
         loaded_map = []
@@ -74,6 +75,14 @@ class Game:
     def parse_images(self):
         import materials
         textures_paths = materials.Sprites().texture_dictionary
+
+    def update_screen(self):
+        sorted_objs = sorted(self.objects_to_render, key=lambda x: x[1])
+        # print(sorted_objs)
+
+        for i in sorted_objs:
+            game_object = i[2]
+            game_object.render_object()
 
     def start_game(self):
         pg.init()
@@ -95,13 +104,12 @@ class Game:
         # another_test_obj = game_objects.Box((400, 400), 0, 'Box2', screen, self)
         # tank = game_objects.LightTank([100, 100], 0, 'LT', screen, self)
 
-
         self.initialize_map(screen)
         # projectile = game_objects.ProjectileEmitter(100, 100, [500, 500], 90, screen)
         # projectile.shoot()
         tank = self.tank
         while running:
-            dt = clock.tick(144) / 1000
+            dt = clock.tick(300) / 1000
             # print(clock.get_fps())
             # Event handling loop
             for event in pg.event.get():
@@ -133,16 +141,18 @@ class Game:
             for obj in self.objects_to_update:
                 if obj.isAlive:
                     obj.update_object()
-
+            # print(len(self.active_objects))
             for tank in self.tanks:
                 tank.update_tank(dt)
 
 
-
             for anim in self.anim_sequences[:]:
-                print(anim.name)
+                # print(anim.name)
                 anim.sprite_sequencer()
+            self.update_screen()
+            # print(len(self.objects_to_render))
 
+            # print(len(self.anim_sequences))
             pg.display.flip()
 
         pg.quit()
