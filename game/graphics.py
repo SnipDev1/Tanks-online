@@ -1,4 +1,5 @@
 import pygame as pg
+import json
 
 import game_objects
 import materials
@@ -7,10 +8,6 @@ import utils
 
 class Game:
     def __init__(self):
-        self.tank_image = None
-        self.box_image = None
-        self.enemy_image = None
-        self.floor_image = None
         self.objects_to_update = []
         self.update_order = []
         self.active_objects = []
@@ -20,35 +17,36 @@ class Game:
         self.tanks = []
         self.tank = None
         self.res_dictionary = materials.Sprites().res_dictionary
-        # print(self.res_dictionary)
         self.load_map()
         self.render_index_counter = 0
 
     def del_object_from_render(self, render_index):
-        self.objects_to_render = [t for t in self.objects_to_render if t[0] != render_index]  # print("HRU")
+        self.objects_to_render = [t for t in self.objects_to_render if t[0] != render_index]
 
     def add_object_to_render(self, game_object, render_layer):
         self.render_index_counter += 1
         self.objects_to_render.append((self.render_index_counter, render_layer, game_object))
         return self.render_index_counter
 
-    def spawn_object_by_number(self, number, screen, position):
+    def spawn_object_by_number(self, material_id, screen, position, layer=0):
         obj = None
-        match number:
+        match material_id:
             case 2:
                 obj = game_objects.Box((400, 400), 0, 'Box', screen, self)
-                obj.coordinates = [obj.sprite_size[0] * position[0] + obj.sprite_size[0] / 2, obj.sprite_size[1] * position[1] + obj.sprite_size[1] / 2]
+                obj.coordinates = [obj.sprite_size[0] * position[0] + obj.sprite_size[0] / 2,
+                                   obj.sprite_size[1] * position[1] + obj.sprite_size[1] / 2]
                 obj.explosion_anim.coordinates = obj.coordinates
-
                 self.active_objects.append(obj.game_object_class)
                 self.objects_to_update.append(obj)
             case 4:
                 obj = game_objects.Floor((400, 400), 0, 'floor', screen, self)
-                obj.coordinates = [obj.sprite_size[0] * position[0] + obj.sprite_size[0] / 2, obj.sprite_size[1] * position[1] + obj.sprite_size[1] / 2]
+                obj.coordinates = [obj.sprite_size[0] * position[0] + obj.sprite_size[0] / 2,
+                                   obj.sprite_size[1] * position[1] + obj.sprite_size[1] / 2]
                 self.objects_to_update.append(obj)
             case 6:
                 obj = game_objects.LightTank([100, 100], 0, 'LT', screen, self)
-                obj.coordinates = [obj.sprite_size[0] * position[0] + obj.sprite_size[0] / 2, obj.sprite_size[1] * position[1] + obj.sprite_size[1] / 2]
+                obj.coordinates = [obj.sprite_size[0] * position[0] + obj.sprite_size[0] / 2,
+                                   obj.sprite_size[1] * position[1] + obj.sprite_size[1] / 2]
                 self.active_objects.append(obj.game_object_class)
                 self.tanks.append(obj)
                 self.tank = obj
@@ -57,20 +55,39 @@ class Game:
     def initialize_map(self, screen):
         for row in range(len(self.game_map)):
             for column in range(len(self.game_map[row])):
-                element = self.game_map[row][column]
-                self.spawn_object_by_number(element, screen, [column, row])
-
-                # x_coord = buttons_x_shift + map_surface.x + button_x_size * column  # y_coord = buttons_y_shift + map_surface.y + button_y_size * row  # self.map_buttons.append(Button((x_coord, y_coord), (button_x_size, button_y_size), (255, 255, 255), "", (0, 0, 0), None, row, column, element, True, 100))
+                cell = self.game_map[row][column]
+                for layer_data in cell['layers']:
+                    self.spawn_object_by_number(
+                        layer_data['material_id'],
+                        screen,
+                        [column, row],
+                        layer_data.get('layer', 0)
+                    )
 
     def load_map(self):
-        loaded_map = []
-        with open("map.txt", 'r') as f:
-            data = f.read().split(';')
-            for row in data:
-                row = row.split(',')
-                row = list(map(int, row))
-                loaded_map.append(row)
-        self.game_map = loaded_map
+        try:
+            with open("map.json", 'r') as f:
+                data = json.load(f)
+
+            self.game_map = []
+            width = data['width']
+            height = data['height']
+
+            for y in range(height):
+                row = []
+                for x in range(width):
+                    tiles = [t for t in data['tiles'] if t['x'] == x and t['y'] == y]
+                    row.append({'layers': tiles})
+                self.game_map.append(row)
+
+        except (FileNotFoundError, json.JSONDecodeError):
+            self.game_map = []
+            for y in range(8):
+                row = []
+                for x in range(8):
+                    row.append({'layers': [{'material_id': 4, 'layer': 0}]})
+                self.game_map.append(row)
+            print("Created default map")
 
     def parse_images(self):
         import materials
@@ -78,8 +95,6 @@ class Game:
 
     def update_screen(self):
         sorted_objs = sorted(self.objects_to_render, key=lambda x: x[1])
-        # print(sorted_objs)
-
         for i in sorted_objs:
             game_object = i[2]
             game_object.render_object()
@@ -99,19 +114,11 @@ class Game:
         background.blit(bg_sprite, (0, 0))
 
         running = True
-        # test_obj = game_objects.Box((300, 300), 0, 'Box1', screen, self)
-        # # explosion = game_objects.Explosion("explosion_2",(500, 500), 0, 'expl', screen, self)
-        # another_test_obj = game_objects.Box((400, 400), 0, 'Box2', screen, self)
-        # tank = game_objects.LightTank([100, 100], 0, 'LT', screen, self)
-
         self.initialize_map(screen)
-        # projectile = game_objects.ProjectileEmitter(100, 100, [500, 500], 90, screen)
-        # projectile.shoot()
         tank = self.tank
         while running:
             dt = clock.tick(300) / 1000
-            # print(clock.get_fps())
-            # Event handling loop
+
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     running = False
@@ -141,18 +148,14 @@ class Game:
             for obj in self.objects_to_update:
                 if obj.isAlive:
                     obj.update_object()
-            # print(len(self.active_objects))
+
             for tank in self.tanks:
                 tank.update_tank(dt)
 
-
             for anim in self.anim_sequences[:]:
-                # print(anim.name)
                 anim.sprite_sequencer()
-            self.update_screen()
-            # print(len(self.objects_to_render))
 
-            # print(len(self.anim_sequences))
+            self.update_screen()
             pg.display.flip()
 
         pg.quit()

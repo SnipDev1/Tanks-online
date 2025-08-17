@@ -1,4 +1,7 @@
 import pygame as pg
+import json
+import os
+import materials
 
 
 class Text:
@@ -41,8 +44,7 @@ class Button:
         return new_color
 
     def is_clicked(self, event, value=None):
-        if self.button_rect.collidepoint(event.pos):
-            # print(f"Button clicked! {self.x_index}, {self.y_index}")
+        if self.button_rect.collidepoint(event.pos) if event else True:
             if value is not None:
                 self.value = value
             self.update_button()
@@ -51,19 +53,33 @@ class Button:
 
     def update_button(self):
         if self.use_value_color:
-            import materials
-            self.btn_color = materials.Sprites().get_material_color_by_id(self.value)
+            # Если это кнопка материала, просто используем цвет материала
+            if self.is_material_button:
+                self.btn_color = materials.Sprites().get_material_color_by_id(self.value)
+            # Если это кнопка ячейки карты, используем цвет верхнего слоя
+            else:
+                layers = self.value['layers']
+                if layers:
+                    # Сортируем слои по номеру (сверху вниз)
+                    sorted_layers = sorted(layers, key=lambda l: l['layer'], reverse=True)
+                    top_layer = sorted_layers[0]
+                    self.btn_color = materials.Sprites().get_material_color_by_id(top_layer['material_id'])
+                else:
+                    self.btn_color = (128, 128, 128)  # Серый цвет по умолчанию
         self.button_surface.fill(self.btn_color)
-        self.button_surface.blit(self.text, self.text_rect)
+        if self.text:
+            self.button_surface.blit(self.text, self.text_rect)
 
     def is_under_cursor(self):
         if self.button_rect.collidepoint(pg.mouse.get_pos()):
             self.button_surface.fill(self.btn_color_under_cursor)
         else:
             self.button_surface.fill(self.btn_color)
-        self.button_surface.blit(self.text, self.text_rect)
+        if self.text:
+            self.button_surface.blit(self.text, self.text_rect)
 
-    def __init__(self, coordinates: tuple, size: tuple, btn_color: tuple, text: str, text_color: tuple, image=None, x_index=-1, y_index=-1, value=-1, use_value_color=False, darkness_value=60):
+    def __init__(self, coordinates: tuple, size: tuple, btn_color: tuple, text: str, text_color: tuple, image=None,
+                 x_index=-1, y_index=-1, value=-1, use_value_color=False, darkness_value=60, is_material_button=False):
         self.x = coordinates[0]
         self.y = coordinates[1]
         self.x_index = x_index
@@ -71,26 +87,26 @@ class Button:
         self.value = value
         self.btn_color = btn_color
         self.use_value_color = use_value_color
-        if use_value_color:
-            import materials
-            self.btn_color = materials.Sprites().get_material_color_by_id(self.value)
-        self.btn_color_under_cursor = self.color_under_cursor(btn_color, darkness_value)
+        self.is_material_button = is_material_button
 
+        if use_value_color and is_material_button:
+            self.btn_color = materials.Sprites().get_material_color_by_id(value)
+
+        self.btn_color_under_cursor = self.color_under_cursor(btn_color, darkness_value)
         self.button_surface = pg.Surface(size)
-        self.button_surface.fill(btn_color)
+        self.button_surface.fill(self.btn_color)
 
         font = pg.font.Font(None, 24)
+        self.text = font.render(text, True, text_color) if text else None
+        if self.text:
+            self.text_rect = self.text.get_rect(center=(self.button_surface.get_width() / 2, self.button_surface.get_height() / 2))
+            self.button_surface.blit(self.text, self.text_rect)
 
-        self.text = font.render(text, True, text_color)
-        self.text_rect = self.text.get_rect(center=(self.button_surface.get_width() / 2, self.button_surface.get_height() / 2))
         self.button_rect = pg.Rect(coordinates[0], coordinates[1], size[0], size[1])
-
-        self.button_surface.blit(self.text, self.text_rect)
 
 
 class UI:
     def __init__(self, map_path):
-        import materials
         self.buttons = []
         self.map_buttons = []
         self.game_map = []
@@ -101,22 +117,49 @@ class UI:
         self.map_path = map_path
         self.set_images()
         self.load_map()
-        self.selected_material = -1
+        self.selected_material = 0
+        self.current_layer = 0
 
     def load_map(self):
-        loaded_map = []
-        with open(self.map_path, 'r') as f:
-            data = f.read().split(';')
-            for row in data:
-                row = row.split(',')
-                row = list(map(int, row))
-                loaded_map.append(row)
-        self.map_y = len(loaded_map)
-        self.map_x = len(loaded_map[0])
-        self.game_map = loaded_map
+        try:
+            with open(self.map_path, 'r') as f:
+                data = json.load(f)
+
+            self.map_x = data['width']
+            self.map_y = data['height']
+            self.game_map = []
+
+            # Создаем пустую карту со слоями
+            for y in range(self.map_y):
+                row = []
+                for x in range(self.map_x):
+                    # Для каждой ячейки создаем словарь с ключом 'layers'
+                    row.append({'layers': []})
+                self.game_map.append(row)
+
+            # Заполняем слои из данных
+            for tile in data['tiles']:
+                x = tile['x']
+                y = tile['y']
+                self.game_map[y][x]['layers'].append({
+                    'material_id': tile['material_id'],
+                    'layer': tile.get('layer', 0)
+                })
+
+        except (FileNotFoundError, json.JSONDecodeError):
+            # Создаем карту по умолчанию
+            self.map_x = 8
+            self.map_y = 8
+            self.game_map = []
+            for y in range(self.map_y):
+                row = []
+                for x in range(self.map_x):
+                    # Добавляем слой пола по умолчанию
+                    row.append({'layers': [{'material_id': 4, 'layer': 0}]})
+                self.game_map.append(row)
+            print(f"Created default map {self.map_x}x{self.map_y}")
 
     def set_images(self):
-        import materials
         import os
         bg_image_path = materials.Sprites().get_image_path('map_editor_bg')
         self.bg_image = pg.image.load(os.path.abspath(bg_image_path))
@@ -139,48 +182,61 @@ class UI:
 
         space_between_mat_buttons = 0
         amount_of_mat_buttons = len(self.res_dictionary)
-        print(amount_of_mat_buttons)
         button_x_size = materials_surface.surface.get_width() // amount_of_mat_buttons - space_between_mat_buttons
         button_y_size = materials_surface.surface.get_height()
         buttons_x_shift = (materials_surface.surface.get_width() - button_x_size * amount_of_mat_buttons) // 2
         for i in range(amount_of_mat_buttons):
             x_coord = materials_surface.x + button_x_size * i + buttons_x_shift
             y_coord = materials_surface.y
-            button = Button((x_coord, y_coord), (button_x_size, button_y_size), (255, 255, 255), self.res_dictionary[i], (0, 0, 0), None, -1, -1, i, True, 60)
+            button = Button(
+                (x_coord, y_coord),
+                (button_x_size, button_y_size),
+                (255, 255, 255),
+                self.res_dictionary[i],
+                (0, 0, 0),
+                None,
+                -1, -1, i, True, 60, is_material_button=True
+            )
             self.buttons.append(button)
 
-
         map_surface = Surface((132, 132), (537, 537), (255, 255, 0), 0)
-
-
         screen.blit(map_surface.surface, (132, 132))
+
         button_x_size = map_surface.surface.get_width() // self.map_x
         button_y_size = map_surface.surface.get_height() // self.map_y
         buttons_x_shift = (map_surface.surface.get_width() - button_x_size * self.map_x) // 2
         buttons_y_shift = (map_surface.surface.get_height() - button_y_size * self.map_y) // 2
-        print(button_x_size, button_y_size)
-        print(buttons_x_shift)
 
-        for row in range(len(self.game_map)):
-            for column in range(len(self.game_map[row])):
-                element = self.game_map[row][column]
-                x_coord = buttons_x_shift + map_surface.x + button_x_size * column
-                y_coord = buttons_y_shift + map_surface.y + button_y_size * row
-                self.map_buttons.append(Button((x_coord, y_coord), (button_x_size, button_y_size), (255, 255, 255), "", (0, 0, 0), None, row, column, element, True, 100))
+        self.map_buttons = []
+        for y in range(len(self.game_map)):
+            for x in range(len(self.game_map[y])):
+                cell = self.game_map[y][x]
+                x_coord = buttons_x_shift + map_surface.x + button_x_size * x
+                y_coord = buttons_y_shift + map_surface.y + button_y_size * y
+                self.map_buttons.append(Button(
+                    (x_coord, y_coord),
+                    (button_x_size, button_y_size),
+                    (255, 255, 255),
+                    "",
+                    (0, 0, 0),
+                    None,
+                    y, x, cell, True, 100
+                ))
 
         running = True
         fill_mode = False
         bucket_mode = False
         texts = []
-        fill_text = Text((80, 10), "Fill (F / G): ", fill_mode, 30)
-        bucket_text = Text((440, 10), "Bucket (B / N): ", bucket_mode, 30)
+        fill_text = Text((80, 10), "Fill (F/G): ", fill_mode, 30)
+        current_layer_text = Text((250, 30), "Layer (PgUp/PgDn): ", self.current_layer, 30)
+        bucket_text = Text((440, 10), "Bucket (B/N): ", bucket_mode, 30)
         text_surface = Surface((132, 669), (537, 40), (22, 22, 22), 255)
 
         texts.append(fill_text)
         texts.append(bucket_text)
-        while running:
+        texts.append(current_layer_text)
 
-            # Event handling loop
+        while running:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     running = False
@@ -193,19 +249,33 @@ class UI:
                         bucket_mode = True
                     if event.key == pg.K_n:
                         bucket_mode = False
+                    if event.key == pg.K_PAGEUP:
+                        self.current_layer += 1
+                    if event.key == pg.K_PAGEDOWN:
+                        self.current_layer = max(0, self.current_layer - 1)
+
                     if event.key == pg.K_s:
-                        map_to_save = ""
+                        tiles = []
                         for y in range(self.map_y):
-                            if y != 0:
-                                map_to_save += ";"
                             for x in range(self.map_x):
-                                if x != 0:
-                                    map_to_save += ", "
-                                map_to_save += f"{self.map_buttons[x + y * self.map_x].value}"
-                            map_to_save = map_to_save.strip()
-                        with open("map.txt", "w") as f:
-                            f.write(map_to_save)
-                        print("Saved!")
+                                cell = self.game_map[y][x]
+                                for layer in cell['layers']:
+                                    tiles.append({
+                                        'x': x,
+                                        'y': y,
+                                        'material_id': layer['material_id'],
+                                        'layer': layer['layer']
+                                    })
+
+                        map_data = {
+                            'width': self.map_x,
+                            'height': self.map_y,
+                            'tiles': tiles
+                        }
+
+                        with open(self.map_path, "w") as f:
+                            json.dump(map_data, f, indent=2)
+                        print("Map saved!")
 
                 if event.type == pg.MOUSEBUTTONDOWN or (event.type == pg.MOUSEMOTION and fill_mode):
                     if not fill_mode:
@@ -213,35 +283,57 @@ class UI:
                             res = button.is_clicked(event)
                             if res is not None:
                                 self.selected_material = res
+
                     if bucket_mode:
-                        need_value = 0
+                        # Режим ведра не поддерживает слои
                         for button in self.map_buttons:
                             if button.is_clicked(event) is not None:
                                 need_value = button.value
+                                for map_button in self.map_buttons:
+                                    map_button.value['layers'] = need_value['layers'].copy()
+                                    map_button.update_button()
                                 break
-                        for map_button in self.map_buttons:
-                            if map_button.value == need_value:
-                                map_button.value = self.selected_material
-                                map_button.update_button()
+
                     for button in self.map_buttons:
-                        button.is_clicked(event, self.selected_material)
+                        if button.is_clicked(event) is not None:
+                            cell = button.value
 
-                    # Print details of the mouse click to the console  # print(  #     f"Mouse button pressed at position: {event.pos}, Button: {event.button}")  # elif event.type == pg.MOUSEBUTTONUP:  #     # Optionally, detect mouse button release  #     print(f"Mouse button released at position: {event.pos}, Button: {event.button}")
+                            # Ищем слой с текущим номером
+                            found_layer = None
+                            for layer in cell['layers']:
+                                if layer['layer'] == self.current_layer:
+                                    found_layer = layer
+                                    break
+
+                            # Если слой найден - обновляем материал
+                            if found_layer:
+                                found_layer['material_id'] = self.selected_material
+                            # Если не найден - добавляем новый слой
+                            else:
+                                cell['layers'].append({
+                                    'material_id': self.selected_material,
+                                    'layer': self.current_layer
+                                })
+
+                            # Обновляем кнопку
+                            button.update_button()
+
+            # Обновление UI
+            screen.blit(bg_image, (0, 0))
+            screen.blit(materials_surface.surface, (materials_surface.x, materials_surface.y))
+            screen.blit(map_surface.surface, (132, 132))
+
+            # Очистка и обновление текстовой панели
             text_surface.surface.fill((22, 22, 22))
-            for i in range(len(texts)):
-                element = texts[i]
-                match i:
-                    case 0:
-                        value = fill_mode
-                    case 1:
-                        value = bucket_mode
-                    case _:
-                        value = False
+            fill_text.update_value(fill_mode)
+            bucket_text.update_value(bucket_mode)
+            current_layer_text.update_value(self.current_layer)
 
-                element.update_value(str(value))
-                text_surface.surface.blit(element.text, element.text_rect)
-                screen.blit(text_surface.surface, (text_surface.x, text_surface.y))
+            for text in texts:
+                text_surface.surface.blit(text.text, text.text_rect)
+            screen.blit(text_surface.surface, (text_surface.x, text_surface.y))
 
+            # Отрисовка кнопок
             for button in self.buttons:
                 button.is_under_cursor()
                 screen.blit(button.button_surface, (button.x, button.y))
@@ -250,10 +342,10 @@ class UI:
                 button.is_under_cursor()
                 screen.blit(button.button_surface, (button.x, button.y))
 
-            # Update display (optional, if you have visual elements)
             pg.display.flip()
 
         pg.quit()
 
 
-UI("map.txt").start_editor()
+if __name__ == "__main__":
+    UI("map.json").start_editor()

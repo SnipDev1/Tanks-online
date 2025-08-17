@@ -1,39 +1,59 @@
+import json
+
+
 def set_map():
-    string_to_write = ""
-    x_size = 8
-    y_size = 8
-    for y in range(y_size):
-        if y != 0:
-            string_to_write += ";"
-        for x in range(x_size):
-            if x != 0:
-                string_to_write += ", "
-            string_to_write += "0"
-        string_to_write = string_to_write.strip()
+    width = 8
+    height = 8
+    tiles = []
+
+    for y in range(height):
+        for x in range(width):
+            tiles.append({
+                'x': x,
+                'y': y,
+                'material_id': 0,
+                'layer': 0
+            })
+
+    map_data = {
+        'width': width,
+        'height': height,
+        'tiles': tiles
+    }
+
+    with open("map.json", "w") as f:
+        json.dump(map_data, f, indent=2)
+    print("Map generated: map.json")
 
 
-
-    print(string_to_write)
-
-    with open("map.txt", "w") as f:
-        f.write(string_to_write)
-
-
-def load_map():
-    loaded_map = []
-    with open("map.txt", 'r') as f:
+def convert_old_map(old_path, new_path):
+    with open(old_path, 'r') as f:
         data = f.read().split(';')
-        for row in data:
-            row = row.split(',')
 
-            row = list(map(int, row))
-            loaded_map.append(row)
-    y = len(loaded_map)
-    x = len(loaded_map[0])
-    print(x, y)
+    tiles = []
+    for y, row in enumerate(data):
+        cols = row.split(',')
+        for x, val in enumerate(cols):
+            if val.strip():
+                tiles.append({
+                    'x': x,
+                    'y': y,
+                    'material_id': int(val.strip()),
+                    'layer': 0
+                })
 
+    width = len(cols)
+    height = len(data)
+    map_data = {
+        'width': width,
+        'height': height,
+        'tiles': tiles
+    }
 
-#load_map()
-set_map()
+    with open(new_path, 'w') as f:
+        json.dump(map_data, f, indent=2)
+    print(f"Converted {old_path} to {new_path}")
 
-
+# Выберите что нужно сделать:
+set_map()  # Создать новую карту
+# convert_old_map("map.txt", "map.json")  # Конвертировать старую карту
