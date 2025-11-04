@@ -9,5 +9,8 @@ Controls:
 * A - rotate counterclockwise
 * Space - Shoot
 
-## Video
-[demo.mp4](gameplay.mp4)
+
+
+
+
+https://github.com/user-attachments/assets/8670b021-8ee3-452e-b7f8-675beb0ec233
