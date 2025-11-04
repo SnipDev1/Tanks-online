@@ -93,7 +93,6 @@ class GameObject:
 
         self.isAlive = True
 
-
         self.obj_rect = self.obj_sprite.get_rect()
         self.obj_rect.x = self.coordinates[0]
         self.obj_rect.y = self.coordinates[1]
@@ -168,7 +167,6 @@ class Animation:
         # if is_anim_active:
         self.my_index = None
 
-
     def sprite_sequencer(self):
         if self.is_anim_ended:
             return
@@ -195,8 +193,7 @@ class Animation:
             elif not self.is_anim_cycled and self.current_frame >= len(self.sprites_set):
                 self.game_object.obj_sprite = self.original_sprite
                 self.is_anim_ended = True
-                self.delete_anim_from_sequencer()
-                # self.game_object.destroy()
+                self.delete_anim_from_sequencer()  # self.game_object.destroy()
 
         self.game_object.update_object()
 
@@ -204,8 +201,6 @@ class Animation:
         object_index = utils.find_object_index_in_list(self, self.game_class.anim_sequences)
         self.game_class.anim_sequences.pop(object_index)
         self.game_class.del_object_from_render(self.my_index)
-
-
 
 
 class ProjectileEmitter(GameObject):
@@ -343,7 +338,8 @@ class Tank(Active):
         self.rotating_clockwise = False
         self.moving = False
         self.is_forward = True
-        self.tank_animation = Animation(anim_name="light_tank", screen=self.screen, game_object=self, is_anim_cycled=True, frame_duration=frame_duration, is_anim_active=False, render_layer=render_layer)
+        self.tank_animation = Animation(anim_name="light_tank", screen=self.screen, game_object=self, is_anim_cycled=True, frame_duration=frame_duration, is_anim_active=False,
+                                        render_layer=render_layer)
         self.projectile_emitter = ProjectileEmitter(self.shot_damage, self.shot_speed, self.coordinates, self.rotation, self.screen, game_class, [self.obj_rect])
 
         self.smoke_emitter = AnimEmitter(name="smoke", coordinates=self.coordinates, rotation=self.rotation, tag="shot_expl", screen=self.screen, game_class=self.game_class, sprite_size=[40, 40],
@@ -365,9 +361,8 @@ class Tank(Active):
         self.game_object_class.update_object()
 
         self.tank_animation.is_anim_active = self.rotating or self.moving
-        self.projectile_emitter.move_projectiles(dt)
-        # self.smoke_emitter.rotation = self.rotation
-        # self.smoke_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], -40, self.rotation)
+        self.projectile_emitter.move_projectiles(
+            dt)  # self.smoke_emitter.rotation = self.rotation  # self.smoke_emitter.coordinates = utils.get_emitter_offset(self.coordinates[0], self.coordinates[1], -40, self.rotation)
 
     def turn(self, clockwise, dt):
         if clockwise:
@@ -463,10 +458,25 @@ class Box(GameObject):
         collision_size = material['collision_size']
         sprite_size = material['size']
         destructible = material['destructible']
+        is_able_to_collide = material['is_able_to_collide']
         render_layer = 1
         explosion = AnimEmitter(name="explosion", coordinates=coordinates, rotation=0, tag="expl", screen=screen, game_class=game_class)
         super().__init__(name=name, coordinates=coordinates, rotation=rotation, tag=tag, screen=screen, sprite_size=sprite_size, collision_size=collision_size, game_class=game_class,
-                         destructible=destructible, explosion_anim=explosion, render_layer=render_layer)
+                         destructible=destructible, explosion_anim=explosion, render_layer=render_layer, is_able_to_collide=is_able_to_collide)
+
+
+class Bush(GameObject):
+    def __init__(self, coordinates, rotation, tag, screen, game_class):
+        import materials
+        name = "bush"
+        material = materials.Sprites().get_material_data(name)
+        collision_size = material['collision_size']
+        sprite_size = material['size']
+        is_able_to_collide = material['is_able_to_collide']
+        destructible = material['destructible']
+        render_layer = 1
+        super().__init__(name=name, coordinates=coordinates, rotation=rotation, tag=tag, screen=screen, sprite_size=sprite_size, collision_size=collision_size, game_class=game_class,
+                         destructible=destructible, render_layer=render_layer, is_able_to_collide=is_able_to_collide)
 
 
 class AnimEmitter(GameObject):
@@ -484,3 +494,12 @@ class AnimEmitter(GameObject):
         super().__init__(name=name, coordinates=coordinates, rotation=rotation, tag=tag, screen=screen, sprite_size=sprite_size, collision_size=collision_size, game_class=game_class,
                          destructible=destructible, has_animation=True, frame_duration=frame_duration, parent_object=parent_object, is_anim_cycled=is_anim_cycled, emitter_offset=emitter_offset,
                          render_layer=render_layer)
+
+
+class LightEnemy(LightTank):
+    def __init__(self, coordinates, rotation, tag, screen, game_class):
+        super().__init__(coordinates, rotation, tag, screen, game_class)
+
+
+
+

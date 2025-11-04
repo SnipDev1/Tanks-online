@@ -113,6 +113,7 @@ class UI:
         self.map_x = 0
         self.map_y = 0
         self.res_dictionary = materials.Sprites().res_dictionary
+        print(self.res_dictionary)
         self.bg_image = None
         self.map_path = map_path
         self.set_images()

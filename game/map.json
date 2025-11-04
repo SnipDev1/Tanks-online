@@ -21,12 +21,6 @@
       "layer": 0
     },
     {
-      "x": 2,
-      "y": 0,
-      "material_id": 2,
-      "layer": 1
-    },
-    {
       "x": 3,
       "y": 0,
       "material_id": 4,
@@ -39,12 +33,6 @@
       "layer": 0
     },
     {
-      "x": 4,
-      "y": 0,
-      "material_id": 2,
-      "layer": 1
-    },
-    {
       "x": 5,
       "y": 0,
       "material_id": 4,
@@ -55,12 +43,6 @@
       "y": 0,
       "material_id": 4,
       "layer": 0
-    },
-    {
-      "x": 6,
-      "y": 0,
-      "material_id": 2,
-      "layer": 1
     },
     {
       "x": 7,
@@ -87,16 +69,16 @@
       "layer": 0
     },
     {
-      "x": 2,
-      "y": 1,
-      "material_id": 2,
-      "layer": 1
-    },
-    {
       "x": 3,
       "y": 1,
       "material_id": 4,
       "layer": 0
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "material_id": 2,
+      "layer": 1
     },
     {
       "x": 4,
@@ -111,16 +93,16 @@
       "layer": 0
     },
     {
-      "x": 5,
-      "y": 1,
-      "material_id": 2,
-      "layer": 1
-    },
-    {
       "x": 6,
       "y": 1,
       "material_id": 4,
       "layer": 0
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "material_id": 2,
+      "layer": 1
     },
     {
       "x": 7,
@@ -135,16 +117,16 @@
       "layer": 0
     },
     {
-      "x": 0,
-      "y": 2,
-      "material_id": 2,
-      "layer": 1
-    },
-    {
       "x": 1,
       "y": 2,
       "material_id": 4,
       "layer": 0
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "material_id": 2,
+      "layer": 1
     },
     {
       "x": 2,
@@ -171,6 +153,12 @@
       "layer": 0
     },
     {
+      "x": 5,
+      "y": 2,
+      "material_id": 2,
+      "layer": 1
+    },
+    {
       "x": 6,
       "y": 2,
       "material_id": 4,
@@ -181,12 +169,6 @@
       "y": 2,
       "material_id": 4,
       "layer": 0
-    },
-    {
-      "x": 7,
-      "y": 2,
-      "material_id": 2,
-      "layer": 1
     },
     {
       "x": 0,
@@ -211,6 +193,12 @@
       "y": 3,
       "material_id": 4,
       "layer": 0
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "material_id": 2,
+      "layer": 1
     },
     {
       "x": 4,
@@ -243,22 +231,28 @@
       "layer": 0
     },
     {
-      "x": 1,
+      "x": 0,
       "y": 4,
-      "material_id": 4,
-      "layer": 0
+      "material_id": 2,
+      "layer": 1
     },
     {
       "x": 1,
       "y": 4,
-      "material_id": 2,
-      "layer": 1
+      "material_id": 4,
+      "layer": 0
     },
     {
       "x": 2,
       "y": 4,
       "material_id": 4,
       "layer": 0
+    },
+    {
+      "x": 2,
+      "y": 4,
+      "material_id": 2,
+      "layer": 1
     },
     {
       "x": 3,
@@ -381,58 +375,58 @@
       "layer": 0
     },
     {
-      "x": 7,
+      "x": 6,
       "y": 6,
-      "material_id": 4,
-      "layer": 0
-    },
-    {
-      "x": 0,
-      "y": 7,
-      "material_id": 4,
-      "layer": 0
-    },
-    {
-      "x": 1,
-      "y": 7,
-      "material_id": 4,
-      "layer": 0
-    },
-    {
-      "x": 2,
-      "y": 7,
-      "material_id": 4,
-      "layer": 0
-    },
-    {
-      "x": 3,
-      "y": 7,
-      "material_id": 4,
-      "layer": 0
-    },
-    {
-      "x": 4,
-      "y": 7,
-      "material_id": 4,
-      "layer": 0
-    },
-    {
-      "x": 5,
-      "y": 7,
-      "material_id": 4,
-      "layer": 0
-    },
-    {
-      "x": 6,
-      "y": 7,
-      "material_id": 4,
-      "layer": 0
-    },
-    {
-      "x": 6,
-      "y": 7,
       "material_id": 6,
       "layer": 1
+    },
+    {
+      "x": 7,
+      "y": 6,
+      "material_id": 4,
+      "layer": 0
+    },
+    {
+      "x": 0,
+      "y": 7,
+      "material_id": 4,
+      "layer": 0
+    },
+    {
+      "x": 1,
+      "y": 7,
+      "material_id": 4,
+      "layer": 0
+    },
+    {
+      "x": 2,
+      "y": 7,
+      "material_id": 4,
+      "layer": 0
+    },
+    {
+      "x": 3,
+      "y": 7,
+      "material_id": 4,
+      "layer": 0
+    },
+    {
+      "x": 4,
+      "y": 7,
+      "material_id": 4,
+      "layer": 0
+    },
+    {
+      "x": 5,
+      "y": 7,
+      "material_id": 4,
+      "layer": 0
+    },
+    {
+      "x": 6,
+      "y": 7,
+      "material_id": 4,
+      "layer": 0
     },
     {
       "x": 7,

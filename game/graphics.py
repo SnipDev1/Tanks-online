@@ -51,6 +51,12 @@ class Game:
                 self.tanks.append(obj)
                 self.tank = obj
                 self.objects_to_update.append(obj)
+            case 7:
+                obj = game_objects.Bush([100, 100], 0, 'LT', screen, self)
+                obj.coordinates = [obj.sprite_size[0] * position[0] + obj.sprite_size[0] / 2,
+                                   obj.sprite_size[1] * position[1] + obj.sprite_size[1] / 2]
+                # self.active_objects.append(obj.game_object_class)
+                self.objects_to_update.append(obj)
 
     def initialize_map(self, screen):
         for row in range(len(self.game_map)):
